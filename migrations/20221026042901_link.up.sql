@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS links(
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    url TEXT NOT NULL,
+    shorturl TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    private BOOLEAN NOT NULL DEFAULT FALSE,
+    created DATETIME NOT NULL,
+    updated DATETIME NOT NULL,
+    UNIQUE(url)
+);

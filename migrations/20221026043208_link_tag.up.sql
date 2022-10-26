@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS links_tagks(
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    link_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    UNIQUE(link_id, tag_id)
+);
