@@ -16,3 +16,5 @@ env_logger = "0.9"
 reqwest = "0.11"
 actix-rt = "2.7"
 openssl = { version = "0.10", features = ["vendored"] }
+tokio = { version = "1.21", features = ["full"]}
+regex = "1"
