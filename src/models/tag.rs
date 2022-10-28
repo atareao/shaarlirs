@@ -17,21 +17,41 @@ pub struct TagWithOccurrences {
 }
 
 impl Tag{
+    pub async fn get_or_insert(pool: &web::Data<SqlitePool>, name: &str) -> Result<Tag, Error>{
+        match Self::read_from_name(pool, name).await {
+            Ok(tag) => Ok(tag),
+            Err(_) => Self::create(pool, name).await
+        }
+    }
+
     pub async fn create(pool: &web::Data<SqlitePool>, name: &str) -> Result<Tag, Error>{
-        
-        let sql = "INSERT INTO tags (name) VALUES ($1);";
-        let id = query(sql)
+        let sql = "INSERT INTO tags (name) VALUES ($1) RETURNING id, name;";
+        query(sql)
             .bind(name)
-            .execute(pool.get_ref())
-            .await?
-        .last_insert_rowid();
-        Self::read(pool, id).await
+            .map(|row: SqliteRow| Tag{
+                id: row.get("id"),
+                name: row.get("name"),
+            })
+            .fetch_one(pool.get_ref())
+            .await
     }
 
     pub async fn read(pool: &web::Data<SqlitePool>, id: i64) -> Result<Tag, Error>{
         let sql = "SELECT id, name FROM tags WHERE id = $1;";
         query(sql)
             .bind(id)
+            .map(|row: SqliteRow| Tag{
+                id: row.get("id"),
+                name: row.get("name"),
+            })
+            .fetch_one(pool.get_ref())
+            .await
+    }
+
+    pub async fn read_from_name(pool: &web::Data<SqlitePool>, name: &str) -> Result<Tag, Error>{
+        let sql = "SELECT id, name FROM tags WHERE name = $1;";
+        query(sql)
+            .bind(name)
             .map(|row: SqliteRow| Tag{
                 id: row.get("id"),
                 name: row.get("name"),
