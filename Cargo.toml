@@ -18,3 +18,5 @@ actix-rt = "2.7"
 openssl = { version = "0.10", features = ["vendored"] }
 tokio = { version = "1.21", features = ["full"]}
 regex = "1"
+md5 = "0.7"
+base64 = "0.13"
