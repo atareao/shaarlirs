@@ -2,3 +2,4 @@
 __pycache__/
 .env
 Cargo.lock
+shaarli.db
