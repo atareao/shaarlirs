@@ -7,9 +7,9 @@ use std::fmt;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Metatag {
     url: String,
-    title: String,
-    description: String,
-    tags: Vec<String>,
+    pub title: String,
+    pub description: String,
+    pub tags: Vec<String>,
 }
 
 impl Metatag {
