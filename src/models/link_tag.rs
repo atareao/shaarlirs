@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use sqlx::{sqlite::{SqlitePool, SqliteRow, SqliteQueryResult}, Error, query, Row};
+use actix_web::web::Data;
 
 #[derive(Debug, Serialize, Deserialize, Eq)]
 pub struct LinkTag{
@@ -24,58 +25,58 @@ impl LinkTag {
         }
     }
 
-    pub async fn create(pool: &SqlitePool, link_id: i64, tag_id: i64) -> Result<LinkTag, Error>{
+    pub async fn create(pool: &Data<SqlitePool>, link_id: i64, tag_id: i64) -> Result<LinkTag, Error>{
         let sql = "INSERT INTO links_tags (link_id, tag_id) VALUES ($1, $2)
                    RETURNING *";
         query(sql)
             .bind(link_id)
             .bind(tag_id)
             .map(Self::from_row)
-            .fetch_one(pool)
+            .fetch_one(pool.get_ref())
             .await
     }
 
-    pub async fn read(pool: &SqlitePool, id: i64) -> Result<LinkTag, Error>{
+    pub async fn read(pool: &Data<SqlitePool>, id: i64) -> Result<LinkTag, Error>{
         let sql = "SELECT * FROM links_tags WHERE id = $1";
         query(sql)
             .bind(id)
             .map(Self::from_row)
-            .fetch_one(pool)
+            .fetch_one(pool.get_ref())
             .await
     }
 
-    pub async fn read_all(pool: &SqlitePool) -> Result<Vec<LinkTag>, Error>{
+    pub async fn read_all(pool: &Data<SqlitePool>) -> Result<Vec<LinkTag>, Error>{
         let sql = "SELECT * FROM links_tags";
         query(sql)
             .map(Self::from_row)
-            .fetch_all(pool)
+            .fetch_all(pool.get_ref())
             .await
     }
 
-    pub async fn update(pool: &SqlitePool, id: i64, link_id: i64, tag_id: i64) -> Result<LinkTag, Error>{
+    pub async fn update(pool: &Data<SqlitePool>, id: i64, link_id: i64, tag_id: i64) -> Result<LinkTag, Error>{
         let sql = "UPDATE links_tags SET link_id = $1, tag_id =$2 WHERE id = $3 RETURNING *;";
         query(sql)
             .bind(link_id)
             .bind(tag_id)
             .bind(id)
             .map(Self::from_row)
-            .fetch_one(pool)
+            .fetch_one(pool.get_ref())
             .await
     }
 
-    pub async fn delete(pool: &SqlitePool, id: i64) -> Result<LinkTag, Error>{
+    pub async fn delete(pool: &Data<SqlitePool>, id: i64) -> Result<LinkTag, Error>{
         let sql = "DELETE FROM links_tags WHERE id = $1 RETURNING *;";
         query(sql)
             .bind(id)
             .map(Self::from_row)
-            .fetch_one(pool)
+            .fetch_one(pool.get_ref())
             .await
     }
 
-    pub async fn drop(pool: &SqlitePool) -> Result<SqliteQueryResult, Error>{
+    pub async fn drop(pool: &Data<SqlitePool>) -> Result<SqliteQueryResult, Error>{
         let sql = "DELETE FROM links_tags;";
         query(sql)
-            .execute(pool)
+            .execute(pool.get_ref())
             .await
     }
 }
@@ -84,11 +85,12 @@ impl LinkTag {
 mod tests {
     use std::{env, path::Path};
     use sqlx::{Sqlite, Pool, sqlite::SqlitePoolOptions, migrate::{Migrator,
-        MigrateDatabase}};
+        MigrateDatabase}, SqlitePool};
+    use actix_web::web::Data;
     use super::LinkTag;
     use dotenv::dotenv;
 
-    async fn setup() -> Pool<Sqlite>{
+    async fn setup() -> Data<SqlitePool>{
         dotenv().ok();
         let db_url = env::var("DATABASE_URL").expect("DATABASE_URL not set");
         if !Sqlite::database_exists(&db_url).await.unwrap(){
@@ -109,10 +111,10 @@ mod tests {
         .run(&pool)
         .await.unwrap();
 
-        pool
+        Data::new(pool)
     }
 
-    async fn teardown(pool: &Pool<Sqlite>){
+    async fn teardown(pool: &Data<SqlitePool>){
         let _result = LinkTag::drop(pool).await;
     }
 
