@@ -17,6 +17,13 @@ pub struct TagWithOccurrences {
 }
 
 impl Tag{
+    fn from_row(row: SqliteRow) -> Tag{
+        Tag {
+            id: row.get("id"),
+            name: row.get("name"),
+        }
+    }
+
     pub async fn get_or_insert(pool: &web::Data<SqlitePool>, name: &str) -> Result<Tag, Error>{
         match Self::read_from_name(pool, name).await {
             Ok(tag) => Ok(tag),
@@ -28,10 +35,7 @@ impl Tag{
         let sql = "INSERT INTO tags (name) VALUES ($1) RETURNING id, name;";
         query(sql)
             .bind(name)
-            .map(|row: SqliteRow| Tag{
-                id: row.get("id"),
-                name: row.get("name"),
-            })
+            .map(Self::from_row)
             .fetch_one(pool.get_ref())
             .await
     }
@@ -40,10 +44,7 @@ impl Tag{
         let sql = "SELECT id, name FROM tags WHERE id = $1;";
         query(sql)
             .bind(id)
-            .map(|row: SqliteRow| Tag{
-                id: row.get("id"),
-                name: row.get("name"),
-            })
+            .map(Self::from_row)
             .fetch_one(pool.get_ref())
             .await
     }
@@ -52,10 +53,7 @@ impl Tag{
         let sql = "SELECT id, name FROM tags WHERE name = $1;";
         query(sql)
             .bind(name)
-            .map(|row: SqliteRow| Tag{
-                id: row.get("id"),
-                name: row.get("name"),
-            })
+            .map(Self::from_row)
             .fetch_one(pool.get_ref())
             .await
     }
