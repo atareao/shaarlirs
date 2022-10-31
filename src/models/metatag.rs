@@ -77,5 +77,7 @@ fn search_for_meta<'a>(meta: &'a str, content: &'a str) -> Option<regex::Capture
 #[tokio::test]
 async fn check_new(){
     let metatag = Metatag::new("https://atareao.es").await.unwrap();
+    println!("=====================");
     println!("atareao: {}", metatag);
+    println!("=====================");
 }
