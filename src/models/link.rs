@@ -90,11 +90,12 @@ impl Link{
             Some(updated) => updated,
             None => Utc::now(),
         };
-        let sql = "INSERT INTO links (url, title, description, private,
-                   created, updated) VALUES ($1, $2, $3, $4, $5, $6)
-                   RETURNING * ;";
+        let sql = "INSERT INTO links (url, shorturl, title, description,
+                   private, created, updated) VALUES ($1, $2, $3, $4, $5, $6,
+                   $7) RETURNING * ;";
         let link = query(sql)
             .bind(url)
+            .bind("")
             .bind(title)
             .bind(description)
             .bind(private)
@@ -108,7 +109,6 @@ impl Link{
             let tag = Tag::get_or_insert(&pool, &tag_name).await.unwrap();
             let _ = LinkTag::create(pool, link.id, tag.id).await;
         }
-        println!("================================");
         let tags = Tag::read_tags_for_link(&pool, link.id).await.unwrap();
         Ok(LinkWithTags {
             id: link.id,
@@ -134,6 +134,7 @@ impl Link{
     }
     pub async fn create(pool: &web::Data<SqlitePool>, url: &str) -> Result<LinkWithTags, Error>{
         let metatag = Metatag::new(&url).await.unwrap();
+        println!("{}", &metatag);
         let title = metatag.title;
         let description = metatag.description;
         let tags_names = metatag.tags;
@@ -163,6 +164,26 @@ impl Link{
 
     pub async fn read_all(pool: &web::Data<SqlitePool>) -> Result<Vec<Link>, Error>{
         let sql = "SELECT * FROM links;";
+        query(sql)
+            .map(Self::from_row)
+            .fetch_all(pool.get_ref())
+            .await
+    }
+
+    pub async fn search(pool: &web::Data<SqlitePool>, 
+            option_offset: web::Path<Option<i32>>,
+            option_limit: web::Path<Option<&str>>,
+            option_searchterm: web::Path<Option<&str>>,
+            option_searchtags: web::Path<Option<&str>>,
+            option_visibility: web::Path<Option<&str>>,
+        ) -> Result<Vec<Link>, Error>{
+        let offset = option_offset.unwrap_or(0);
+        let limit = option_limit.unwrap_or("0");
+        let sql = if limit == "all"{
+            "SELECT * FROM links"
+        }else{
+            "SELECT * FROM links ORDER BY id OFFSET $1 FETCH NEXT $2 ROWS ONLY;"
+        };
         query(sql)
             .map(Self::from_row)
             .fetch_all(pool.get_ref())
@@ -236,7 +257,8 @@ mod tests {
             updated: None,
         };
 
-        match Link::create_from_post(&pool, &new_link).await {
+        let url = "https://atareao.es";
+        match Link::create(&pool, url).await {
             Ok(link) => {
                 assert_eq!(&link.url, &new_link.url);
             },
