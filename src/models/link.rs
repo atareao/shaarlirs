@@ -179,14 +179,61 @@ impl Link{
         ) -> Result<Vec<Link>, Error>{
         let offset = option_offset.unwrap_or(0);
         let limit = option_limit.unwrap_or("0");
-        let sql = if limit == "all"{
-            "SELECT * FROM links"
-        }else{
-            "SELECT * FROM links ORDER BY id OFFSET $1 FETCH NEXT $2 ROWS ONLY;"
+        let mut sql = Vec::new();
+        let mut conditions = Vec::new();
+        sql.push("SELECT l.* FROM links ORDER BY id".to_string());
+        conditions.push(match option_searchterm.into_inner(){
+            Some(value) => format!("l.title LIKE '%{}%' or l.description LIKE '%{}%'", value, value),
+            None => "1 = 1".to_string(),
+        });
+        let (sql2, condition2) = match option_searchtags.into_inner(){
+            Some(value) => {
+                let tags = value.split("+").map(|x| format!("'{}'", x.trim())).collect::<Vec<String>>().join(",");
+                ("INNER JOIN links_tags lt ON l.id = lt.link_i
+                  INNER JOIN tags t ON t.id = lt.tag_id".to_string(),
+                format!("t.name IN ({})", tags))
+            },
+            None => ("".to_string(), "1 = 1".to_string()),
         };
-        query(sql)
+        sql.push(sql2);
+        conditions.push(condition2);
+        conditions.push(match option_visibility.into_inner(){
+            Some(value) => {
+                if value == "all" {
+                    "1 = 1".to_string()
+                }else{
+                    format!("private = {}", "private" == value)
+                }
+            },
+            None => "1 = 1".to_string(),
+        });
+        sql.push(format!("WHERE {}", conditions.join(" AND ")));
+        sql.push(if limit != "all"{
+            format!("OFFSET {} FETCH NEXT {} ROWS ONLY", offset, limit)
+        }else{
+            "".to_string()
+        });
+        println!("{}", &sql.join(" "));
+        query(&sql.join(" "))
             .map(Self::from_row)
             .fetch_all(pool.get_ref())
+            .await
+    }
+
+    pub async fn update(pool: &web::Data<SqlitePool>, link_id: i64, link_with_tags: &LinkWithTagsNew) -> Result<Link, Error>{
+        let sql = "UPDATE links SET url = $1, title = $2, description = $3,
+                   private = $4, created = $5, updated = &6 WHERE id = $7
+                   RETURNING *";
+        query(sql)
+            .bind(&link_with_tags.url)
+            .bind(&link_with_tags.title)
+            .bind(&link_with_tags.description)
+            .bind(&link_with_tags.private)
+            .bind(&link_with_tags.created)
+            .bind(&link_with_tags.updated)
+            .bind(link_id)
+            .map(Self::from_row)
+            .fetch_one(pool.get_ref())
             .await
     }
 
