@@ -5,7 +5,6 @@ use tokio::fs;
 use env_logger::Env;
 use log::{debug, error};
 use tera::Tera;
-use actix_web_httpauth::extractors::basic;
 use actix_files;
 use dotenv::dotenv;
 
@@ -24,6 +23,8 @@ async fn main() -> std::io::Result<()> {
     debug!("DB url: {}", db_url);
     let port = env::var("PORT").expect("PORT not set");
     debug!("Port: {}", port);
+    let secret = env::var("SECRET").expect("SECRET not set");
+    debug!("Secret: {}", secret);
 
     let template = match Tera::new("templates/**/*.html"){
         Ok(t) => t,
@@ -60,14 +61,14 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
-.app_data(Data::new(pool.clone()))
+            .app_data(Data::new(pool.clone()))
             .app_data(Data::new(template.clone()))
+            .app_data(Data::new(secret.clone()))
             //.service(routes::get_form)
             .service(routes::general::get_info)
             .service(
-                web::scope("results")
-                .app_data(basic::Config::default().realm("Restricted area"))
-                )
+                web::scope("api")
+            )
                 //.service(routes::get_results))
             .service(actix_files::Files::new("/static", "./static"))
     })
