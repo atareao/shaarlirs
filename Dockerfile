@@ -45,10 +45,13 @@ RUN apk add --update --no-cache \
 # Set the work dir
 WORKDIR /app
 
-COPY migrations static templates entrypoint.sh /app/
+COPY entrypoint.sh /app/
+COPY migrations /app/migrations
+COPY static /app/static
+COPY templates /app/templates
 
 # Copy our build
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/den /app/
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/shaarlirs /app/
 
 ENTRYPOINT ["/bin/sh", "/app/entrypoint.sh"]
 CMD ["/app/shaarlirs"]
