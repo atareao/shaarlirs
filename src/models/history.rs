@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 use actix_web::web;
 use sqlx::{sqlite::{SqlitePool, SqliteRow}, Error, query, Row};
-use log::debug;
+use log::{error, debug};
 
 
 enum Event{
@@ -37,31 +37,34 @@ impl History{
         }
     }
 
-    pub async fn created(pool: &web::Data<SqlitePool>) -> Result<History, Error>{
-        Self::insert(pool, Event::CREATED).await
+    pub async fn created(pool: &web::Data<SqlitePool>){
+        Self::insert(pool, Event::CREATED).await;
     }
 
-    pub async fn updated(pool: &web::Data<SqlitePool>) -> Result<History, Error>{
-        Self::insert(pool, Event::UPDATED).await
+    pub async fn updated(pool: &web::Data<SqlitePool>){
+        Self::insert(pool, Event::UPDATED).await;
     }
 
-    pub async fn deleted(pool: &web::Data<SqlitePool>) -> Result<History, Error>{
-        Self::insert(pool, Event::DELETED).await
+    pub async fn deleted(pool: &web::Data<SqlitePool>){
+        Self::insert(pool, Event::DELETED).await;
     }
 
-    pub async fn settings(pool: &web::Data<SqlitePool>) -> Result<History, Error>{
-        Self::insert(pool, Event::SETTINGS).await
+    pub async fn settings(pool: &web::Data<SqlitePool>){
+        Self::insert(pool, Event::SETTINGS).await;
     }
 
-    async fn insert(pool: &web::Data<SqlitePool>, event: Event) -> Result<History, Error>{
+    async fn insert(pool: &web::Data<SqlitePool>, event: Event){
         let datetime = Utc::now();
         let sql = "INSERT INTO history (event, datetime) VALUES ($1, $2) RETURNING *;";
-        query(sql)
+        match query(sql)
             .bind(event.to_string())
             .bind(datetime)
             .map(Self::from_row)
             .fetch_one(pool.get_ref())
-            .await
+            .await{
+                Ok(h) => debug!("Event created: {}", event),
+                Err(e) => error!("Can not write history: {}", e),
+            }
     }
 
     pub async fn search(pool: &web::Data<SqlitePool>, since: &Option<String>, option_offset: &Option<i32>, option_limit: &Option<String>) -> Result<History, Error>{
