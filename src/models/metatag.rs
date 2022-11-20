@@ -13,29 +13,42 @@ pub struct Metatag {
 }
 
 impl Metatag {
-    pub async fn new(url: &str) -> Result<Self, Error>{
+    pub fn empty(url: &str) -> Self{
+        Self{
+            url: url.to_string(),
+            title: "".to_string(),
+            description: "".to_string(),
+            tags: Vec::new(),
+        }
+    }
+    pub async fn new(url: &str) -> Option<Self>{
         let client = Client::new();
-        let content = client.get(url)
+        match client.get(url)
             .header(USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36")
             .send()
-            .await?
-            .text()
-            .await?;
-        let title = search_for_title("<title>", "</title>", &content);
-        let description = match search_for_meta("description", &content){
-            Some(value) => value[1].to_string(),
-            None => "".to_string(),
-        };
-        let keywords = match search_for_meta("keywords", &content){
-            Some(tags) => tags[1].split(",").map(|item| item.trim().to_string()).collect(),
-            None => Vec::new(),
-        };
-        Ok(Self{
-            url: url.to_string(),
-            title: title.to_string(),
-            description: description.to_string(),
-            tags: keywords,
-        })
+            .await{
+                Ok(response) => match response.text().await{
+                    Ok(content) => {
+                        let title = search_for_title("<title>", "</title>", &content);
+                        let description = match search_for_meta("description", &content){
+                            Some(value) => value[1].to_string(),
+                            None => "".to_string(),
+                        };
+                        let keywords = match search_for_meta("keywords", &content){
+                            Some(tags) => tags[1].split(",").map(|item| item.trim().to_string()).collect(),
+                            None => Vec::new(),
+                        };
+                        Some(Self{
+                            url: url.to_string(),
+                            title: title.to_string(),
+                            description: description.to_string(),
+                            tags: keywords,
+                        })
+                    },
+                    Err(_) => None,
+                },
+                Err(_) => None,
+        }
     }
 }
 

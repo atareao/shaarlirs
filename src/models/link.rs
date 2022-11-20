@@ -66,7 +66,10 @@ impl Link{
     pub async fn create_from_post(pool: &web::Data<SqlitePool>, 
             link_with_tags: &LinkWithTagsNew) -> Result<LinkWithTags, Error>{
         let url = &link_with_tags.url;
-        let metatag = Metatag::new(&url).await.unwrap();
+        let metatag = match Metatag::new(&url).await{
+            Some(m) => m,
+            None => Metatag::empty(url),
+        };
         let title = match &link_with_tags.title {
             Some(title) => title,
             None => &metatag.title,
