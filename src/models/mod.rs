@@ -5,3 +5,4 @@ pub mod metatag;
 pub mod short_url;
 pub mod claim;
 pub mod general;
+pub mod history;
