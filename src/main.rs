@@ -25,6 +25,8 @@ async fn main() -> std::io::Result<()> {
     debug!("Port: {}", port);
     let secret = env::var("SECRET").expect("SECRET not set");
     debug!("Secret: {}", secret);
+    let seed = env::var("SEED").expect("SEED not set");
+    debug!("Seed: {}", seed);
 
     let template = match Tera::new("templates/**/*.html"){
         Ok(t) => t,
