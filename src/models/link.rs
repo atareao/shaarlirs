@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 use actix_web::web;
 use sqlx::{sqlite::{SqlitePool, SqliteRow, SqliteQueryResult}, Error, query, Row};
+use log::debug;
 
 use super::{metatag::Metatag, short_url, tag::Tag, link_tag::LinkTag};
 
@@ -264,7 +265,7 @@ impl Link{
         }else{
             "".to_string()
         });
-        println!("{}", &sql.join(" "));
+        debug!("{}", &sql.join(" "));
         query(&sql.join(" "))
             .map(Self::from_row_with_tags)
             .fetch_all(pool.get_ref())
