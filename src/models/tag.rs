@@ -1,6 +1,7 @@
 use serde::{Serialize, Deserialize};
 use actix_web::web;
 use sqlx::{sqlite::{SqlitePool, SqliteRow, SqliteQueryResult}, Error, query, Row};
+use log::debug;
 
 
 
@@ -29,6 +30,12 @@ impl Tag{
             name: row.get("name"),
         }
     }
+    fn from_row_with_ocurrences(row: SqliteRow) -> TagWithOccurrences {
+        TagWithOccurrences {
+            name: row.get("name"),
+            occurrences: row.get("occurrences"),
+        }
+    }
     fn get_string(row: SqliteRow) -> String{
         row.get("name")
     }
@@ -49,11 +56,36 @@ impl Tag{
             .await
     }
 
-    pub async fn read(pool: &web::Data<SqlitePool>, id: i64) -> Result<Tag, Error>{
-        let sql = "SELECT * FROM tags WHERE id = $1;";
+    pub async fn search(pool: &web::Data<SqlitePool>, option_offset: &Option<i32>, option_limit: &Option<String>, _option_visibility: &Option<String>) -> Result<TagWithOccurrences, Error>{
+        let offset = option_offset.unwrap_or(0);
+        let limit = match option_limit {
+            Some(v) => v.to_owned(),
+            None => "20".to_string(),
+        };
+        let mut sql = Vec::new();
+        sql.push("SELECT t.name name, count(*) occurrences FROM tags t
+                   LEFT JOIN links_tags lt ON t.id = lt.tag_id
+                   GROUP BY t.name
+                   ORDER BY t.name".to_string());
+        sql.push(if limit != "all"{
+            format!("LIMIT {} OFFSET {}", limit, offset)
+        }else{
+            "".to_string()
+        });
+        debug!("{}", &sql.join(" "));
+        query(&sql.join(" "))
+            .map(Self::from_row_with_ocurrences)
+            .fetch_one(pool.get_ref())
+            .await
+    }
+    pub async fn read(pool: &web::Data<SqlitePool>, name: &str) -> Result<TagWithOccurrences, Error>{
+        let sql = "SELECT t.name name, count(*) occurrences FROM tags t
+                   LEFT JOIN links_tags lt ON t.id = lt.tag_id
+                   WHERE t.name = $1
+                   GROUP BY t.name";
         query(sql)
-            .bind(id)
-            .map(Self::from_row)
+            .bind(name)
+            .map(Self::from_row_with_ocurrences)
             .fetch_one(pool.get_ref())
             .await
     }
@@ -157,8 +189,8 @@ mod tests {
         let pool = setup().await;
         match Tag::create(&pool, "etiqueta").await {
             Ok(tag) => {
-                let test = Tag::read(&pool, tag.id).await.unwrap();
-                assert_eq!(test, tag);
+                let test = Tag::read(&pool, "etiqueta").await.unwrap();
+                assert_eq!(test.name, tag.name);
             },
             Err(_) => assert!(false),
         }
