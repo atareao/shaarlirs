@@ -175,28 +175,31 @@ impl Link{
     }
 
     pub async fn search(pool: &web::Data<SqlitePool>, 
-            option_offset: web::Path<Option<i32>>,
-            option_limit: web::Path<Option<String>>,
-            option_searchterm: web::Path<Option<String>>,
-            option_searchtags: web::Path<Option<String>>,
-            option_visibility: web::Path<Option<String>>,
+            option_offset: &Option<i32>,
+            option_limit: &Option<String>,
+            option_searchterm: &Option<String>,
+            option_searchtags: &Option<String>,
+            option_visibility: &Option<String>,
             ) -> Result<Vec<Link>, Error>{
         let offset = option_offset.unwrap_or(0);
-        let limit = option_limit.into_inner().unwrap_or("20".to_string());
+        let limit = match option_limit {
+            Some(v) => v.to_owned(),
+            None => "20".to_string(),
+        };
         let mut sql = Vec::new();
         let mut conditions = Vec::new();
-        sql.push("SELECT l.* FROM links ORDER BY id".to_string());
-        conditions.push(match option_searchterm.into_inner(){
+        sql.push("SELECT l.* FROM links l".to_string());
+        conditions.push(match option_searchterm{
             Some(value) => format!("l.title LIKE '%{}%' or l.description LIKE '%{}%'", value, value),
             None => "1 = 1".to_string(),
         });
-        let (sql2, condition2) = match option_searchtags.into_inner(){
+        let (sql2, condition2) = match option_searchtags{
             Some(value) => {
                 let tags = value.split("+")
                     .map(|x| format!("'{}'", x.trim()))
                     .collect::<Vec<String>>()
                     .join(",");
-                ("INNER JOIN links_tags lt ON l.id = lt.link_i
+                ("INNER JOIN links_tags lt ON l.id = lt.link_id
                   INNER JOIN tags t ON t.id = lt.tag_id".to_string(),
                 format!("t.name IN ({})", tags))
             },
@@ -204,7 +207,7 @@ impl Link{
         };
         sql.push(sql2);
         conditions.push(condition2);
-        conditions.push(match option_visibility.into_inner(){
+        conditions.push(match option_visibility{
             Some(value) => {
                 if value == "all" {
                     "1 = 1".to_string()
@@ -215,6 +218,7 @@ impl Link{
             None => "1 = 1".to_string(),
         });
         sql.push(format!("WHERE {}", conditions.join(" AND ")));
+        sql.push(format!("ORDER BY id"));
         sql.push(if limit != "all"{
             format!("LIMIT {} OFFSET {}", limit, offset)
         }else{
