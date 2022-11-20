@@ -11,7 +11,7 @@ struct Claims {
 
 
 
-#[get("/api/v1/info")]
+#[get("info")]
 pub async fn get_info(req: actix_web::HttpRequest, secret: web::Data<String>, pool: web::Data<SqlitePool>) -> Result<HttpResponse, Error>{
     match authorize(&req.headers(), &secret){
         Ok(_) => {
