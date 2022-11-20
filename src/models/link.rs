@@ -63,7 +63,8 @@ impl Link{
         }
     }
 
-    pub async fn create_from_post(pool: &web::Data<SqlitePool>, link_with_tags: &LinkWithTagsNew) -> Result<LinkWithTags, Error>{
+    pub async fn create_from_post(pool: &web::Data<SqlitePool>, 
+            link_with_tags: &LinkWithTagsNew) -> Result<LinkWithTags, Error>{
         let url = &link_with_tags.url;
         let metatag = Metatag::new(&url).await.unwrap();
         let title = match &link_with_tags.title {
@@ -132,7 +133,8 @@ impl Link{
             .await;
         shorturl
     }
-    pub async fn create(pool: &web::Data<SqlitePool>, url: &str) -> Result<LinkWithTags, Error>{
+    pub async fn create(pool: &web::Data<SqlitePool>, url: &str) 
+            -> Result<LinkWithTags, Error>{
         let metatag = Metatag::new(&url).await.unwrap();
         println!("{}", &metatag);
         let title = metatag.title;
@@ -153,7 +155,8 @@ impl Link{
         Self::create_from_post(pool, &link_with_tags).await
     }
 
-    pub async fn read(pool: &web::Data<SqlitePool>, id: i64) -> Result<Link, Error>{
+    pub async fn read(pool: &web::Data<SqlitePool>, id: i64) 
+            -> Result<Link, Error>{
         let sql = "SELECT * FROM links WHERE id = $1;";
         query(sql)
             .bind(id)
@@ -162,7 +165,8 @@ impl Link{
             .await
     }
 
-    pub async fn read_all(pool: &web::Data<SqlitePool>) -> Result<Vec<Link>, Error>{
+    pub async fn read_all(pool: &web::Data<SqlitePool>) 
+            -> Result<Vec<Link>, Error>{
         let sql = "SELECT * FROM links;";
         query(sql)
             .map(Self::from_row)
@@ -172,13 +176,13 @@ impl Link{
 
     pub async fn search(pool: &web::Data<SqlitePool>, 
             option_offset: web::Path<Option<i32>>,
-            option_limit: web::Path<Option<&str>>,
-            option_searchterm: web::Path<Option<&str>>,
-            option_searchtags: web::Path<Option<&str>>,
-            option_visibility: web::Path<Option<&str>>,
-        ) -> Result<Vec<Link>, Error>{
+            option_limit: web::Path<Option<String>>,
+            option_searchterm: web::Path<Option<String>>,
+            option_searchtags: web::Path<Option<String>>,
+            option_visibility: web::Path<Option<String>>,
+            ) -> Result<Vec<Link>, Error>{
         let offset = option_offset.unwrap_or(0);
-        let limit = option_limit.unwrap_or("0");
+        let limit = option_limit.into_inner().unwrap_or("20".to_string());
         let mut sql = Vec::new();
         let mut conditions = Vec::new();
         sql.push("SELECT l.* FROM links ORDER BY id".to_string());
@@ -188,7 +192,10 @@ impl Link{
         });
         let (sql2, condition2) = match option_searchtags.into_inner(){
             Some(value) => {
-                let tags = value.split("+").map(|x| format!("'{}'", x.trim())).collect::<Vec<String>>().join(",");
+                let tags = value.split("+")
+                    .map(|x| format!("'{}'", x.trim()))
+                    .collect::<Vec<String>>()
+                    .join(",");
                 ("INNER JOIN links_tags lt ON l.id = lt.link_i
                   INNER JOIN tags t ON t.id = lt.tag_id".to_string(),
                 format!("t.name IN ({})", tags))
@@ -209,7 +216,7 @@ impl Link{
         });
         sql.push(format!("WHERE {}", conditions.join(" AND ")));
         sql.push(if limit != "all"{
-            format!("OFFSET {} FETCH NEXT {} ROWS ONLY", offset, limit)
+            format!("LIMIT {} OFFSET {}", limit, offset)
         }else{
             "".to_string()
         });
@@ -220,7 +227,8 @@ impl Link{
             .await
     }
 
-    pub async fn update(pool: &web::Data<SqlitePool>, link_id: i64, link_with_tags: &LinkWithTagsNew) -> Result<Link, Error>{
+    pub async fn update(pool: &web::Data<SqlitePool>, link_id: i64, 
+            link_with_tags: &LinkWithTagsNew) -> Result<Link, Error>{
         let sql = "UPDATE links SET url = $1, title = $2, description = $3,
                    private = $4, created = $5, updated = &6 WHERE id = $7
                    RETURNING *";
@@ -237,7 +245,8 @@ impl Link{
             .await
     }
 
-    pub async fn delete(pool: &web::Data<SqlitePool>, link_id: i64) -> Result<Link, Error>{
+    pub async fn delete(pool: &web::Data<SqlitePool>, link_id: i64) 
+            -> Result<Link, Error>{
         let sql = "DELETE FROM links WHERE id = $1 RETURNING *;";
         query(sql)
             .bind(link_id)
@@ -246,7 +255,8 @@ impl Link{
             .await
     }
 
-    pub async fn drop(pool: &web::Data<SqlitePool>) -> Result<SqliteQueryResult, Error>{
+    pub async fn drop(pool: &web::Data<SqlitePool>) 
+            -> Result<SqliteQueryResult, Error>{
         let sql = "DELETE FROM links;";
         query(sql)
             .execute(pool.get_ref())

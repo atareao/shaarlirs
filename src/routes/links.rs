@@ -13,16 +13,16 @@ pub async fn create(pool: web::Data<SqlitePool>, new_link_with_tags: web::Json<L
         .map_err(|e| ErrorConflict(e))
 }
 
-//#[get("/links")]
-//pub async fn read(pool: web::Data<SqlitePool>,
-//        offset: web::Path<Option<i32>>,
-//        limit: web::Path<Option<&str>>,
-//        searchterm: web::Path<Option<&str>>,
-//        searchtags: web::Path<Option<&str>>,
-//        visibility: web::Path<Option<&str>>,
-//) -> Result<HttpResponse, Error>{
-//    Link::search(&pool, offset, limit, searchterm, searchtags, visibility)
-//        .await
-//        .map(|item| HttpResponse::Ok().json(item))
-//        .map_err(|e| ErrorConflict(e))
-//}
+#[get("/links")]
+pub async fn read(pool: web::Data<SqlitePool>,
+        offset: web::Path<Option<i32>>,
+        limit: web::Path<Option<String>>,
+        searchterm: web::Path<Option<String>>,
+        searchtags: web::Path<Option<String>>,
+        visibility: web::Path<Option<String>>,
+) -> Result<HttpResponse, Error>{
+    Link::search(&pool, offset, limit, searchterm, searchtags, visibility)
+        .await
+        .map(|item| HttpResponse::Ok().json(item))
+        .map_err(|e| ErrorConflict(e))
+}
