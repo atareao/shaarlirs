@@ -79,6 +79,8 @@ async fn main() -> std::io::Result<()> {
                     .service(routes::links::delete)
                     .service(routes::tags::search)
                     .service(routes::tags::read)
+                    .service(routes::tags::update)
+                    .service(routes::tags::delete)
                     )
             )
             //.service(routes::get_results))

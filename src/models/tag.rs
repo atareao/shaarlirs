@@ -127,6 +127,19 @@ impl Tag{
             .await
     }
 
+    pub async fn update(pool: &web::Data<SqlitePool>, name: &str, new_name: &str) -> Result<TagWithOccurrences, Error>{
+        let sql = "UPDATE tags SET name = $1 WHERE name = $2 RETURNING *;";
+        match query(sql)
+            .bind(new_name)
+            .bind(name)
+            .map(Self::from_row)
+            .fetch_one(pool.get_ref())
+            .await{
+                Ok(_) => Self::read(pool, new_name).await,
+                Err(e) => Err(e),
+        }
+    }
+
     pub async fn drop(pool: &web::Data<SqlitePool>) -> Result<SqliteQueryResult, Error>{
         let sql = "DELETE FROM tags";
         query(sql)
