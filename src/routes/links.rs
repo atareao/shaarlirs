@@ -52,7 +52,7 @@ pub async fn read(pool: web::Data<SqlitePool>, params: web::Query<Params>
 
 #[get("/links/{link_id}")]
 pub async fn read_one(pool: web::Data<SqlitePool>, link_id: web::Path<i64>,
-) ->HttpResponse{
+) -> HttpResponse{
     debug!("Path: /links/{}", link_id);
     match Link::read(&pool, link_id.into_inner()).await{
         Ok(item) => HttpResponse::Ok().json(item),
@@ -62,19 +62,19 @@ pub async fn read_one(pool: web::Data<SqlitePool>, link_id: web::Path<i64>,
 
 #[put("/links/{link_id}")]
 pub async fn update(pool: web::Data<SqlitePool>, link_id: web::Path<i64>, link_with_tags: web::Json<LinkWithTagsNew>
-) -> Result<HttpResponse, Error>{
-    Link::update(&pool, link_id.into_inner(), &link_with_tags)
-        .await
-        .map(|item| HttpResponse::Ok().json(item))
-        .map_err(|e| ErrorConflict(e))
+) -> HttpResponse {
+    match Link::update(&pool, link_id.into_inner(), &link_with_tags).await{
+        Ok(item) => HttpResponse::Ok().json(item),
+        Err(_) => HttpResponse::BadRequest().finish(),
+    }
 }
 
 #[delete("/links/{link_id}")]
 pub async fn delete(pool: web::Data<SqlitePool>, link_id: web::Path<i64>,
-) -> Result<HttpResponse, Error>{
-    Link::delete(&pool, link_id.into_inner())
-        .await
-        .map(|item| HttpResponse::Ok().json(item))
-        .map_err(|e| ErrorConflict(e))
+) -> HttpResponse {
+    match Link::delete(&pool, link_id.into_inner()).await {
+        Ok(_) => HttpResponse::NoContent().finish(),
+        Err(_) => HttpResponse::BadRequest().finish(),
+    }
 }
 

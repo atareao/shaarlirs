@@ -63,6 +63,24 @@ impl Link{
         }
     }
 
+    fn from_row_with_tags(row: SqliteRow) -> LinkWithTags{
+        let tags = row.get::<String, &str>("tags")
+            .split(",")
+            .map(|item| item.to_string())
+            .collect();
+        LinkWithTags{
+            id: row.get("id"),
+            url: row.get("url"),
+            shorturl: row.get("shorturl"),
+            title: row.get("title"),
+            tags,
+            description: row.get("description"),
+            private: row.get("private"),
+            created: row.get("created"),
+            updated: row.get("updated"),
+        }
+    }
+
     pub async fn create_from_post(pool: &web::Data<SqlitePool>, 
             link_with_tags: &LinkWithTagsNew) -> Result<LinkWithTags, Error>{
         let url = &link_with_tags.url;
@@ -159,20 +177,34 @@ impl Link{
     }
 
     pub async fn read(pool: &web::Data<SqlitePool>, id: i64) 
-            -> Result<Link, Error>{
-        let sql = "SELECT * FROM links WHERE id = $1;";
+            -> Result<LinkWithTags, Error>{
+        let sql = " WITH mtags AS (
+                        SELECT lt.link_id, group_concat(name) tags FROM tags t
+                        INNER JOIN links_tags lt ON t.id = lt.tag_id
+                        GROUP BY lt.link_id)
+                    SELECT l.*,t.tags FROM links l
+                    LEFT JOIN mtags t ON l.id=t.link_id
+                    WHERE id = $1
+                    ORDER BY id";
+        //let sql = "SELECT * FROM links WHERE id = $1;";
         query(sql)
             .bind(id)
-            .map(Self::from_row)
+            .map(Self::from_row_with_tags)
             .fetch_one(pool.get_ref())
             .await
     }
 
     pub async fn read_all(pool: &web::Data<SqlitePool>) 
-            -> Result<Vec<Link>, Error>{
-        let sql = "SELECT * FROM links;";
+            -> Result<Vec<LinkWithTags>, Error>{
+        let sql = " WITH mtags AS (
+                        SELECT lt.link_id, group_concat(name) tags FROM tags t
+                        INNER JOIN links_tags lt ON t.id = lt.tag_id
+                        GROUP BY lt.link_id)
+                    SELECT l.*,t.tags FROM links l
+                    LEFT JOIN mtags t ON l.id=t.link_id
+                    ORDER BY id";
         query(sql)
-            .map(Self::from_row)
+            .map(Self::from_row_with_tags)
             .fetch_all(pool.get_ref())
             .await
     }
@@ -183,7 +215,7 @@ impl Link{
             option_searchterm: &Option<String>,
             option_searchtags: &Option<String>,
             option_visibility: &Option<String>,
-            ) -> Result<Vec<Link>, Error>{
+            ) -> Result<Vec<LinkWithTags>, Error>{
         let offset = option_offset.unwrap_or(0);
         let limit = match option_limit {
             Some(v) => v.to_owned(),
@@ -191,7 +223,12 @@ impl Link{
         };
         let mut sql = Vec::new();
         let mut conditions = Vec::new();
-        sql.push("SELECT l.* FROM links l".to_string());
+        sql.push("WITH mtags AS (
+                        SELECT lt.link_id, group_concat(name) tags FROM tags t
+                        INNER JOIN links_tags lt ON t.id = lt.tag_id
+                        GROUP BY lt.link_id)
+                    SELECT l.*,t.tags FROM links l
+                    LEFT JOIN mtags t ON l.id=t.link_id".to_string());
         conditions.push(match option_searchterm{
             Some(value) => format!("l.title LIKE '%{}%' or l.description LIKE '%{}%'", value, value),
             None => "1 = 1".to_string(),
@@ -229,7 +266,7 @@ impl Link{
         });
         println!("{}", &sql.join(" "));
         query(&sql.join(" "))
-            .map(Self::from_row)
+            .map(Self::from_row_with_tags)
             .fetch_all(pool.get_ref())
             .await
     }
