@@ -5,7 +5,7 @@ use sqlx::{SqlitePool, error::Error::Database};
 use serde::Deserialize;
 use log::debug;
 
-use crate::models::link::{LinkWithTagsNew, Link};
+use crate::models::{link::{LinkWithTagsNew, Link}, history::History};
 #[derive(Debug, Deserialize)]
 struct Params{
     pub offset: Option<i32>,
@@ -18,8 +18,12 @@ struct Params{
 
 #[post("/links")]
 pub async fn create(pool: web::Data<SqlitePool>, new_link_with_tags: web::Json<LinkWithTagsNew>) -> HttpResponse{
-    match Link::create_from_post(&pool, &new_link_with_tags).await{
-        Ok(item) => HttpResponse::Created().json(item),
+    debug!("Action: Post. Path: /links");
+    let result = match Link::create_from_post(&pool, &new_link_with_tags).await{
+        Ok(item) => {
+            History::created(&pool).await;
+            HttpResponse::Created().json(item)
+        },
         Err(e) => {
             if let Some(err) = e.as_database_error(){
                 debug!("{:?}", err);
@@ -30,13 +34,14 @@ pub async fn create(pool: web::Data<SqlitePool>, new_link_with_tags: web::Json<L
                     json!({"code": 400, "message": e.to_string()}))
             }
         },
-    }
+    };
+    result
 }
 
 #[get("/links")]
 pub async fn read(pool: web::Data<SqlitePool>, params: web::Query<Params>
 ) -> HttpResponse{
-    debug!("Path: /links");
+    debug!("Action: Get. Path: /links");
     let offset = &params.offset;
     let limit = &params.limit;
     let searchterm = &params.searchterm;
@@ -63,8 +68,12 @@ pub async fn read_one(pool: web::Data<SqlitePool>, link_id: web::Path<i64>,
 #[put("/links/{link_id}")]
 pub async fn update(pool: web::Data<SqlitePool>, link_id: web::Path<i64>, link_with_tags: web::Json<LinkWithTagsNew>
 ) -> HttpResponse {
+    debug!("Action: Put. Path: /links");
     match Link::update(&pool, link_id.into_inner(), &link_with_tags).await{
-        Ok(item) => HttpResponse::Ok().json(item),
+        Ok(item) => {
+            History::updated(&pool).await;
+            HttpResponse::Ok().json(item)
+        },
         Err(_) => HttpResponse::BadRequest().finish(),
     }
 }
@@ -72,8 +81,12 @@ pub async fn update(pool: web::Data<SqlitePool>, link_id: web::Path<i64>, link_w
 #[delete("/links/{link_id}")]
 pub async fn delete(pool: web::Data<SqlitePool>, link_id: web::Path<i64>,
 ) -> HttpResponse {
+    debug!("Action: Delete. Path: /links/{link_id}");
     match Link::delete(&pool, link_id.into_inner()).await {
-        Ok(_) => HttpResponse::NoContent().finish(),
+        Ok(_) => {
+            History::deleted(&pool).await;
+            HttpResponse::NoContent().finish()
+        },
         Err(_) => HttpResponse::BadRequest().finish(),
     }
 }

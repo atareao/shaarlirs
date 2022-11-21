@@ -21,7 +21,7 @@ pub async fn search(pool: web::Data<SqlitePool>, params: web::Query<Params>
     let offset = &params.offset;
     let limit = &params.limit;
     let since = &params.since;
-    match History::search(&pool, limit, offset, since)
+    match History::search(&pool, since, offset, limit)
         .await{
             Ok(items) => HttpResponse::Ok().json(items),
             Err(_) => HttpResponse::BadRequest().json(

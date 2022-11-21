@@ -1,3 +1,46 @@
 GET https://{{FQDN}}/api/v1/info
 Authorization: Bearer {{TOKEN}}
 Content-Type: text/plain; charset=UTF-8
+
+GET http://{{FQDN}}/api/v1/links
+Content-Type: application/json
+
+DELETE http://{{FQDN}}/api/v1/links/40
+Content-Type: application/json
+
+GET http://{{FQDN}}/api/v1/links?offset=40&limit=25&searchterm=shaarli+api&searchtags=rest+http&visibility=private
+Content-Type: application/json
+
+POST http://{{FQDN}}/api/v1/links
+Content-Type: application/json
+
+{
+  "url": "http://atareao.es",
+  "description": "Hello, world!",
+  "tags": ["hello", "world"],
+  "private": false,
+  "created": "2015-05-05T12:30:00+03:00",
+  "updated": "2015-05-06T14:30:00+03:00"
+}
+
+GET http://{{FQDN}}/api/v1/links?offset=0&limit=2&searchtags=hellol
+Content-Type: application/json
+
+GET http://{{FQDN}}/api/v1/links?offset=1&limit=2&searchterm=Hello
+Content-Type: application/json
+
+GET http://{{FQDN}}/api/v1/links/34
+Content-Type: application/json
+
+GET http://{{FQDN}}/api/v1/tags
+Content-Type: application/json
+
+GET http://{{FQDN}}/api/v1/tags/world
+Content-Type: application/json
+
+GET http://{{FQDN}}/api/v1/history?since=2022-11-20 11:17:32
+Content-Type: application/json
+
+
+
+

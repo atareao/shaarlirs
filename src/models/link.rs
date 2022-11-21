@@ -4,7 +4,6 @@ use actix_web::web;
 use sqlx::{sqlite::{SqlitePool, SqliteRow, SqliteQueryResult}, Error, query, Row};
 use log::debug;
 
-use crate::models::history::History;
 
 use super::{metatag::Metatag, short_url, tag::Tag, link_tag::LinkTag};
 
@@ -178,7 +177,6 @@ impl Link{
         };
         match Self::create_from_post(pool, &link_with_tags).await{
             Ok(l) => {
-                History::created(pool).await;
                 Ok(l)
             },
             Err(e) => Err(e),
@@ -297,7 +295,6 @@ impl Link{
             .fetch_one(pool.get_ref())
             .await{
                 Ok(l) => {
-                    History::updated(pool).await;
                     Ok(l)
                 },
                 Err(e) => Err(e),
@@ -305,16 +302,15 @@ impl Link{
     }
 
     pub async fn delete(pool: &web::Data<SqlitePool>, link_id: i64) 
-            -> Result<Link, Error>{
-        let sql = "DELETE FROM links WHERE id = $1 RETURNING *;";
+            -> Result<bool, Error>{
+        let sql = "DELETE FROM links WHERE id = $1";
+        debug!("Delete: {}", sql);
         match query(sql)
             .bind(link_id)
-            .map(Self::from_row)
-            .fetch_one(pool.get_ref())
+            .execute(pool.get_ref())
             .await{
-                Ok(l) => {
-                    History::deleted(pool).await;
-                    Ok(l)
+                Ok(_) => {
+                    Ok(true)
                 },
                 Err(e) => Err(e),
             }

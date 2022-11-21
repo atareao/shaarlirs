@@ -16,7 +16,12 @@ enum Event{
 
 impl fmt::Display for Event{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-        write!(f, "{}", self)
+        match self {
+            Event::CREATED => write!(f, "CREATED"),
+            Event::UPDATED => write!(f, "UPDATED"),
+            Event::DELETED => write!(f, "DELETED"),
+            Event::SETTINGS => write!(f, "SETTINGS"),
+        }
     }
 }
 
@@ -33,7 +38,7 @@ impl History{
         History {
             id: row.get("id"),
             event: row.get("event"),
-            datetime: row.get("datetime"),
+            datetime: row.get("dt"),
         }
     }
 
@@ -54,20 +59,23 @@ impl History{
     }
 
     async fn insert(pool: &web::Data<SqlitePool>, event: Event){
+        debug!("insert in the history");
         let datetime = Utc::now();
-        let sql = "INSERT INTO history (event, datetime) VALUES ($1, $2) RETURNING *;";
+        debug!("Datetime: {}", datetime);
+        let sql = "INSERT INTO history (event, dt) VALUES ($1, $2);";
+        debug!("Sql: {}", sql);
+        debug!("Sql: {}", event);
         match query(sql)
             .bind(event.to_string())
             .bind(datetime)
-            .map(Self::from_row)
-            .fetch_one(pool.get_ref())
+            .execute(pool.get_ref())
             .await{
-                Ok(h) => debug!("Event created: {}", event),
+                Ok(_) => debug!("Event created: {}", event),
                 Err(e) => error!("Can not write history: {}", e),
             }
     }
 
-    pub async fn search(pool: &web::Data<SqlitePool>, since: &Option<String>, option_offset: &Option<i32>, option_limit: &Option<String>) -> Result<History, Error>{
+    pub async fn search(pool: &web::Data<SqlitePool>, since: &Option<String>, option_offset: &Option<i32>, option_limit: &Option<String>) -> Result<Vec<History>, Error>{
         let offset = option_offset.unwrap_or(0);
         let limit = match option_limit {
             Some(v) => v.to_owned(),
@@ -76,10 +84,10 @@ impl History{
         let mut sql = Vec::new();
         sql.push("SELECT * FROM history".to_string());
         sql.push(match since{
-            Some(v) => format!("WHERE datetime > '{}'", v),
+            Some(v) => format!("WHERE dt > '{}'", v),
             None => "".to_string(),
         });
-        sql.push("ORDER BY datetime".to_string());
+        sql.push("ORDER BY dt".to_string());
         sql.push(if limit != "all"{
             format!("LIMIT {} OFFSET {}", limit, offset)
         }else{
@@ -88,7 +96,7 @@ impl History{
         debug!("{}", &sql.join(" "));
         query(&sql.join(" "))
             .map(Self::from_row)
-            .fetch_one(pool.get_ref())
+            .fetch_all(pool.get_ref())
             .await
     }
 }
